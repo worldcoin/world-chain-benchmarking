@@ -1,0 +1,3 @@
+region           = "us-east-1"
+instance_type    = "i4i.4xlarge"
+root_volume_size = 500
