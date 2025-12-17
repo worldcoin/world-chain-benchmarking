@@ -2,7 +2,10 @@
 set -euo pipefail
 
 apt-get update
-apt-get install -y git curl build-essential neovim just zstd nvme-cli jq aria2
+apt-get install -y git curl build-essential neovim zstd nvme-cli jq aria2
+
+# Install just
+curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to /usr/local/bin
 
 # Mount instance store NVMe SSD at /data
 NVME_DEVICE=$(nvme list -o json | jq -r '.Devices[] | select(.ModelNumber | contains("Instance Storage")) | .DevicePath' | head -1)
