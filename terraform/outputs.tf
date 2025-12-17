@@ -7,5 +7,5 @@ output "public_ip" {
 }
 
 output "ssh" {
-  value = "ssh -i ${path.module}/benchmark-key.pem ubuntu@${aws_instance.benchmark.public_ip}"
+  value = "ssh -o IdentitiesOnly=yes -i ${path.module}/benchmark-key.pem ubuntu@${aws_instance.benchmark.public_ip}"
 }

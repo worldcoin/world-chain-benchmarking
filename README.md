@@ -33,6 +33,8 @@ root_volume_size = 500   # GB
 
 ## Usage
 
+Set your `AWS_PROFILE` env var.
+
 ```bash
 just up      # Launch instance
 just ssh     # SSH into instance
