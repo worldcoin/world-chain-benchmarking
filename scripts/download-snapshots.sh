@@ -2,36 +2,38 @@
 set -euo pipefail
 
 NETWORK="mainnet"
-BLOCK_NUMBER=24029720
-OUTPUT_DIR="${1:-.}"
-CONNECTIONS=16
+BLOCK_NUMBER="${BLOCK_NUMBER:-24029720}"
+CONNECTIONS="${CONNECTIONS:-16}"
 
-download_snapshot() {
-  local client="$1"
-  local outdir="$OUTPUT_DIR/$client"
-  local url="https://snapshots.ethpandaops.io/$NETWORK/$client/$BLOCK_NUMBER/snapshot.tar.zst"
-  local archive="$OUTPUT_DIR/$client.tar.zst"
-
-  mkdir -p "$outdir"
-
-  echo "[$client] Downloading snapshot for block $BLOCK_NUMBER..."
-  aria2c -x "$CONNECTIONS" -s "$CONNECTIONS" -k 100M \
-    --file-allocation=none \
-    -d "$OUTPUT_DIR" -o "$client.tar.zst" \
-    "$url"
-
-  echo "[$client] Extracting..."
-  tar -I zstd -xf "$archive" -C "$outdir"
-  rm "$archive"
-
-  echo "[$client] Done!"
+usage() {
+  echo "Usage: $0 <client> [output_dir]"
+  echo "  client: geth, reth, or nethermind"
+  echo "  output_dir: defaults to current directory"
+  echo ""
+  echo "Environment variables:"
+  echo "  BLOCK_NUMBER  - snapshot block (default: $BLOCK_NUMBER)"
+  echo "  CONNECTIONS   - parallel connections (default: $CONNECTIONS)"
+  exit 1
 }
 
-echo "Downloading snapshots to $OUTPUT_DIR (using $CONNECTIONS connections per download)"
+[[ $# -lt 1 ]] && usage
 
-download_snapshot "geth" &
-# download_snapshot "reth" &
-# download_snapshot "nethermind" &
+CLIENT="$1"
+OUTPUT_DIR="${2:-.}"
+OUTDIR="$OUTPUT_DIR/$CLIENT"
+URL="https://snapshots.ethpandaops.io/$NETWORK/$CLIENT/$BLOCK_NUMBER/snapshot.tar.zst"
+ARCHIVE="$OUTPUT_DIR/$CLIENT.tar.zst"
 
-wait
-echo "All downloads complete!"
+mkdir -p "$OUTDIR"
+
+echo "[$CLIENT] Downloading snapshot for block $BLOCK_NUMBER..."
+aria2c -x "$CONNECTIONS" -s "$CONNECTIONS" -k 100M \
+  --file-allocation=none \
+  -d "$OUTPUT_DIR" -o "$CLIENT.tar.zst" \
+  "$URL"
+
+echo "[$CLIENT] Extracting..."
+tar -I zstd -xf "$ARCHIVE" -C "$OUTDIR"
+rm "$ARCHIVE"
+
+echo "[$CLIENT] Done!"
