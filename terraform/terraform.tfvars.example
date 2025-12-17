@@ -1,3 +1,3 @@
 region           = "eu-central-2"
 instance_type    = "i4i.4xlarge"
-root_volume_size = 500
+root_volume_size = 50
