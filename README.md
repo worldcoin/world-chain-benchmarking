@@ -51,3 +51,18 @@ The SSH key pair is auto-generated and saved to `terraform/benchmark-key.pem`.
 - Ubuntu 22.04 LTS
 - gp3 EBS volume with 16,000 IOPS / 1,000 MB/s throughput
 - Ports open: 22 (SSH), 30303 (Ethereum P2P)
+
+## License
+
+Unless otherwise specified, all code in this repository is dual-licensed under
+either:
+
+- MIT License ([LICENSE-MIT](LICENSE-MIT))
+- Apache License, Version 2.0, with LLVM Exceptions
+  ([LICENSE-APACHE](LICENSE-APACHE))
+
+at your option. This means you may select the license you prefer to use.
+
+Any contribution intentionally submitted for inclusion in the work by you, as
+defined in the Apache-2.0 license, shall be dual licensed as above, without any
+additional terms or conditions.
