@@ -7,6 +7,10 @@ apt-get install -y git curl build-essential neovim zstd nvme-cli jq aria2
 # Install just
 curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to /usr/local/bin
 
+# install s3fcp
+curl -L "https://github.com/Dzejkop/s3fcp/releases/download/v0.2.1/s3fcp-linux-x86_64" -o "/usr/local/bin/s3fcp" &&
+  chmod +x /usr/local/bin/s3fcp
+
 # Mount instance store NVMe SSD at /data
 NVME_DEVICE=$(nvme list -o json | jq -r '.Devices[] | select(.ModelNumber | contains("Instance Storage")) | .DevicePath' | head -1)
 if [ -n "$NVME_DEVICE" ]; then

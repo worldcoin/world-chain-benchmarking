@@ -27,13 +27,6 @@ ARCHIVE="$OUTPUT_DIR/$CLIENT.tar.zst"
 mkdir -p "$OUTDIR"
 
 echo "[$CLIENT] Downloading snapshot for block $BLOCK_NUMBER..."
-aria2c -x "$CONNECTIONS" -s "$CONNECTIONS" -k 100M \
-  --file-allocation=none \
-  -d "$OUTPUT_DIR" -o "$CLIENT.tar.zst" \
-  "$URL"
-
-echo "[$CLIENT] Extracting..."
-tar -I zstd -xf "$ARCHIVE" -C "$OUTDIR"
-rm "$ARCHIVE"
+s3fcp http -c "$CONNECTIONS" --chunk-size 100MB "$URL" | tar -I zstd -C "/$OUTPUT_DIR/$CLIENT" -x
 
 echo "[$CLIENT] Done!"
