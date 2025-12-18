@@ -40,7 +40,8 @@ scenarios:
     snapshot_backend: overlay
     amount: 100
     warmup_duration: 10m
-    image: ethpandaops/geth:performance
+    # image: ethpandaops/geth:performance
+    image: ethpandaops/geth:performance-98d653c
   # Scenario name
   example-nethermind:
     # Required: Client type
