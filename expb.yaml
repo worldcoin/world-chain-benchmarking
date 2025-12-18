@@ -17,11 +17,13 @@ paths:
   outputs: /data/expb/outputs
 
 # Export options for scenarios metrics
+# Note: Using Docker bridge gateway IP (172.17.0.1) since Alloy runs in Docker
+# and needs to reach host services
 export:
   prometheus_remote_write:
-    endpoint: http://localhost:9090/api/v1/write
+    endpoint: http://172.17.0.1:9090/api/v1/write
   pyroscope:
-    endpoint: http://localhost:4040
+    endpoint: http://172.17.0.1:4040
 
 # Resources for the docker container
 resources:
