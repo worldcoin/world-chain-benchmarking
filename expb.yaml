@@ -34,7 +34,7 @@ resources:
 scenarios:
   example-geth:
     client: geth
-    snapshot_source: /data/snapthots/geth
+    snapshot_source: /data/snapshots/geth
     snapshot_backend: overlay
     amount: 100
     warmup_duration: 10m
@@ -44,7 +44,7 @@ scenarios:
     # Required: Client type
     client: nethermind # Available clients: nethermind, besu, erigon, geth, reth
     # Required: Snapshot source for the selected client and network (either a path or zfs snapshot name)
-    snapshot_source: /data/snapthots/nethermind
+    snapshot_source: /data/snapshots/nethermind
     # Optional: Snapshot backend to use. Available snapshot backends: overlay, zfs, copy. Defaults to overlay
     snapshot_backend: overlay
     # Optional: Snapshot path for copy backend. If defined, this path will be used instead of work_dir/snapshot. Only used when snapshot_backend is copy
