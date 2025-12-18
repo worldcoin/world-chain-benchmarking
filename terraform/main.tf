@@ -22,13 +22,13 @@ resource "tls_private_key" "benchmark" {
 }
 
 resource "aws_key_pair" "benchmark" {
-  key_name   = "benchmark-key"
+  key_name   = "${var.prefix}-benchmark-key"
   public_key = tls_private_key.benchmark.public_key_openssh
 }
 
 resource "local_file" "private_key" {
   content         = tls_private_key.benchmark.private_key_openssh
-  filename        = "${path.module}/benchmark-key.pem"
+  filename        = "${path.module}/${var.prefix}-benchmark-key.pem"
   file_permission = "0600"
 }
 
@@ -43,7 +43,7 @@ data "aws_ami" "ubuntu" {
 }
 
 resource "aws_security_group" "benchmark" {
-  name_prefix = "benchmark-"
+  name_prefix = "${var.prefix}-benchmark-"
 
   ingress {
     from_port   = 22
@@ -92,6 +92,6 @@ resource "aws_instance" "benchmark" {
   user_data = file("${path.module}/user-data.sh")
 
   tags = {
-    Name = "benchmark"
+    Name = "${var.prefix}-benchmark"
   }
 }

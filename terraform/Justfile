@@ -1,7 +1,7 @@
 set dotenv-load
 
 ssh_opts := "-o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR"
-ssh_key := "-i benchmark-key.pem"
+ssh_key := "-i $(terraform output -raw private_key_path)"
 port_forwards := "-L 3000:localhost:3000 -L 9090:localhost:9090 -L 4040:localhost:4040"
 
 default:
