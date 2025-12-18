@@ -2,6 +2,7 @@ set dotenv-load
 
 ssh_opts := "-o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR"
 ssh_key := "-i benchmark-key.pem"
+port_forwards := "-L 3000:localhost:3000 -L 9090:localhost:9090 -L 4040:localhost:4040"
 
 default:
     @just --list
@@ -56,13 +57,24 @@ wait:
     ssh {{ssh_opts}} {{ssh_key}} ubuntu@$IP 'cloud-init status --wait'
     echo "Ready!"
 
-# SSH into the instance (waits for ready)
-ssh: wait
-    @ssh {{ssh_opts}} {{ssh_key}} ubuntu@$(terraform output -raw public_ip)
+# SSH into the instance (waits for ready, loads .env)
+ssh: wait _ssh
 
-# SSH without waiting
-ssh-now:
-    @ssh {{ssh_opts}} {{ssh_key}} ubuntu@$(terraform output -raw public_ip)
+# SSH without waiting (loads .env)
+ssh-now: _ssh
+
+_ssh:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    IP=$(terraform output -raw public_ip)
+    ENV_EXPORTS=""
+    if [[ -f ../.env ]]; then
+        while IFS= read -r line || [[ -n "$line" ]]; do
+            [[ "$line" =~ ^#.*$ || -z "$line" ]] && continue
+            ENV_EXPORTS+="export $line; "
+        done < ../.env
+    fi
+    ssh -t {{ssh_opts}} {{ssh_key}} {{port_forwards}} ubuntu@$IP "${ENV_EXPORTS}cd ~/world-chain-benchmarking; bash"
 
 # Show instance IP
 ip:

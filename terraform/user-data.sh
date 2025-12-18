@@ -37,8 +37,5 @@ uv tool install --from git+https://github.com/NethermindEth/execution-payloads-b
 # Clone the benchmarking repo
 git clone https://github.com/worldcoin/world-chain-benchmarking.git
 
-# Auto-cd into repo on login
-echo 'cd ~/world-chain-benchmarking 2>/dev/null || true' >> ~/.bashrc
-
 echo "Ready"
 USERSCRIPT
