@@ -36,7 +36,8 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 source "$HOME/.local/bin/env"
 
 # Install Nethermind's benchmark tool
-uv tool install --from git+https://github.com/NethermindEth/execution-payloads-benchmarks expb
+# uv tool install --from git+https://github.com/NethermindEth/execution-payloads-benchmarks expb
+uv tool install --from git+https://github.com/dzejkop/execution-payloads-benchmarks expb
 
 # Clone the benchmarking repo
 git clone https://github.com/worldcoin/world-chain-benchmarking.git

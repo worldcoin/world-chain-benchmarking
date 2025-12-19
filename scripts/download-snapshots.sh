@@ -22,7 +22,6 @@ CLIENT="$1"
 OUTPUT_DIR="${2:-.}"
 OUTDIR="$OUTPUT_DIR/$CLIENT"
 URL="https://snapshots.ethpandaops.io/$NETWORK/$CLIENT/$BLOCK_NUMBER/snapshot.tar.zst"
-ARCHIVE="$OUTPUT_DIR/$CLIENT.tar.zst"
 
 mkdir -p "$OUTDIR"
 
