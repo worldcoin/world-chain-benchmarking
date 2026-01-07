@@ -74,7 +74,7 @@ _ssh:
             ENV_EXPORTS+="export $line; "
         done < ../.env
     fi
-    ssh -t {{ssh_opts}} {{ssh_key}} {{port_forwards}} ubuntu@$IP "${ENV_EXPORTS}cd ~/world-chain-benchmarking; bash"
+    ssh -t {{ssh_opts}} {{ssh_key}} {{port_forwards}} ubuntu@$IP "${ENV_EXPORTS}cd ~/benchmarking; bash"
 
 # Show instance IP
 ip:
