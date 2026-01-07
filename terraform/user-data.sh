@@ -46,7 +46,7 @@ make install-reth-bench
 cd ~
 
 # Clone the benchmarking repo
-git clone https://github.com/worldcoin/world-chain-benchmarking.git benchmarking
+git clone -b dzejkop/setup https://github.com/worldcoin/world-chain-benchmarking.git benchmarking
 cd benchmarking
 uv sync
 
