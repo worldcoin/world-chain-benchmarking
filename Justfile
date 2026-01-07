@@ -19,18 +19,15 @@ upload *args:
 profile *args:
     uv run bench profile {{args}}
 
-# Terraform commands
-tf *args:
-    cd terraform && terraform {{args}}
-
-# Provision EC2 instance
+# Terraform/EC2 commands (delegate to terraform/Justfile)
 up:
-    just tf apply -auto-approve
+    @just --justfile terraform/Justfile up
 
-# Destroy EC2 instance
 down:
-    just tf destroy -auto-approve
+    @just --justfile terraform/Justfile down
 
-# SSH into EC2 instance
 ssh:
     @just --justfile terraform/Justfile ssh
+
+tf *args:
+    @just --justfile terraform/Justfile {{args}}
