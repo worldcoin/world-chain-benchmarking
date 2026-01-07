@@ -3,22 +3,34 @@ set dotenv-load
 default:
     @just --list
 
-# Terraform commands (just tf <cmd>)
-tf cmd="":
-    @just --justfile terraform/Justfile {{cmd}}
+# Run benchmark
+run *args:
+    uv run bench run {{args}}
 
-# Start monitoring stack (Prometheus, Grafana, Pyroscope)
-monitoring-up:
-    docker compose up -d
+# Download snapshot
+snapshot *args:
+    uv run bench snapshot {{args}}
 
-# Stop monitoring stack
-monitoring-down:
-    docker compose down
+# Upload results to S3
+upload *args:
+    uv run bench upload {{args}}
 
-# Show monitoring logs
-monitoring-logs:
-    docker compose logs -f
+# Run profiled benchmark
+profile *args:
+    uv run bench profile {{args}}
 
-# Restart monitoring stack
-monitoring-restart:
-    docker compose restart
+# Terraform commands
+tf *args:
+    cd terraform && terraform {{args}}
+
+# Provision EC2 instance
+up:
+    just tf apply -auto-approve
+
+# Destroy EC2 instance
+down:
+    just tf destroy -auto-approve
+
+# SSH into EC2 instance
+ssh:
+    @just --justfile terraform/Justfile ssh

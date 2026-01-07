@@ -2,7 +2,7 @@
 set -euo pipefail
 
 apt-get update
-apt-get install -y git curl build-essential neovim zstd nvme-cli jq aria2
+apt-get install -y git curl build-essential neovim zstd lz4 nvme-cli jq aria2 clang
 
 # Install just
 curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to /usr/local/bin
@@ -35,12 +35,20 @@ cd ~
 curl -LsSf https://astral.sh/uv/install.sh | sh
 source "$HOME/.local/bin/env"
 
-# Install Nethermind's benchmark tool
-# uv tool install --from git+https://github.com/NethermindEth/execution-payloads-benchmarks expb
-uv tool install --from git+https://github.com/dzejkop/execution-payloads-benchmarks expb
+# Install Rust (for reth-bench)
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+source "$HOME/.cargo/env"
+
+# Clone and build reth-bench
+git clone https://github.com/paradigmxyz/reth.git
+cd reth
+make install-reth-bench
+cd ~
 
 # Clone the benchmarking repo
-git clone https://github.com/worldcoin/world-chain-benchmarking.git
+git clone https://github.com/worldcoin/world-chain-benchmarking.git benchmarking
+cd benchmarking
+uv sync
 
 echo "Ready"
 USERSCRIPT
