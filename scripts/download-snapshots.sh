@@ -2,7 +2,7 @@
 set -euo pipefail
 
 NETWORK="mainnet"
-BLOCK_NUMBER="${BLOCK_NUMBER:-24029720}"
+BLOCK_NUMBER="${BLOCK_NUMBER:-23910000}"
 CONNECTIONS="${CONNECTIONS:-16}"
 
 usage() {
@@ -27,5 +27,6 @@ mkdir -p "$OUTDIR"
 
 echo "[$CLIENT] Downloading snapshot for block $BLOCK_NUMBER..."
 s3fcp http -c "$CONNECTIONS" --chunk-size 100MB "$URL" | tar -I zstd -C "/$OUTPUT_DIR/$CLIENT" -x
+s3fcp s3 "s3://world-chain-snapshots/reth_full.tar.lz4" | tar -I lz4 -C "/data/reth" -x
 
 echo "[$CLIENT] Done!"
