@@ -84,6 +84,8 @@ def get_node_cmd(client_name: str, network: str, datadir: str = "/data") -> list
     client = get_client(client_name)
     chain_flag = client.chain_flag.get(network, "")
 
+    jwt_path = f"{datadir}/jwt.hex"
+
     if client_name in ("reth", "op-reth"):
         cmd = [
             "node",
@@ -93,6 +95,7 @@ def get_node_cmd(client_name: str, network: str, datadir: str = "/data") -> list
             "--http.api", "admin,net,eth,web3,debug,trace",
             "--authrpc.addr", "0.0.0.0",
             "--authrpc.port", "8551",
+            "--authrpc.jwtsecret", jwt_path,
             "--engine.accept-execution-requests-hash",
         ]
         if chain_flag:
@@ -106,6 +109,7 @@ def get_node_cmd(client_name: str, network: str, datadir: str = "/data") -> list
             "--JsonRpc.Host", "0.0.0.0",
             "--JsonRpc.EngineHost", "0.0.0.0",
             "--JsonRpc.EnginePort", "8551",
+            "--JsonRpc.JwtSecretFile", jwt_path,
         ]
         if chain_flag:
             cmd.extend(chain_flag.split())
@@ -119,6 +123,7 @@ def get_node_cmd(client_name: str, network: str, datadir: str = "/data") -> list
             "--http.api", "admin,net,eth,web3,debug",
             "--authrpc.addr", "0.0.0.0",
             "--authrpc.port", "8551",
+            "--authrpc.jwtsecret", jwt_path,
         ]
         return cmd
 
