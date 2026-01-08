@@ -118,11 +118,11 @@ def wait_for_node_ready(timeout: int = 120) -> None:
     start = time.time()
     while time.time() - start < timeout:
         try:
-            # Try to connect to the engine API
+            # Check HTTP RPC (no JWT required)
             result = run(
                 ["curl", "-s", "-X", "POST", "-H", "Content-Type: application/json",
-                 "-d", '{"jsonrpc":"2.0","method":"engine_exchangeCapabilities","params":[[]],"id":1}',
-                 f"http://localhost:{ENGINE_PORT}"],
+                 "-d", '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}',
+                 f"http://localhost:{HTTP_PORT}"],
                 check=False,
                 capture=True,
             )
