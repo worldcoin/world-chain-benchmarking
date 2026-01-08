@@ -32,9 +32,13 @@ ENGINE_PORT = 8551
 
 
 def generate_jwt_secret(path: Path) -> None:
-    """Generate a random JWT secret file for Engine API authentication."""
-    jwt_hex = secrets.token_hex(32)
-    path.write_text(jwt_hex)
+    """Generate a random JWT secret file for Engine API authentication.
+
+    Format: 32 bytes as hex string with 0x prefix (66 chars total), no newline.
+    """
+    jwt_hex = "0x" + secrets.token_hex(32)
+    # Write without trailing newline - some clients are sensitive to this
+    path.write_bytes(jwt_hex.encode("ascii"))
 
 
 @dataclass
