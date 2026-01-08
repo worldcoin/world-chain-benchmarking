@@ -8,9 +8,22 @@ from pathlib import Path
 
 from rich.console import Console
 
-from .clients import get_client, get_docker_image, get_node_cmd, get_unwind_cmd, validate_client_network
+from .clients import (
+    get_client,
+    get_docker_image,
+    get_node_cmd,
+    get_unwind_cmd,
+    validate_client_network,
+)
 from .snapshots import get_rpc_url, get_snapshot_path
-from .utils import clear_caches, docker_stop, generate_run_id, run, run_docker
+from .utils import (
+    clear_caches,
+    docker_stop,
+    docker_rm,
+    generate_run_id,
+    run,
+    run_docker,
+)
 
 console = Console()
 
@@ -52,7 +65,9 @@ def unwind_to_block(
     unwind_cmd = get_unwind_cmd(client_name, network, block, datadir="/data")
 
     if unwind_cmd is None:
-        console.print(f"[yellow]No unwind command for {client_name}, skipping...[/yellow]")
+        console.print(
+            f"[yellow]No unwind command for {client_name}, skipping...[/yellow]"
+        )
         return
 
     console.print(f"[bold]Unwinding {client_name} to block {block}...[/bold]")
@@ -109,6 +124,7 @@ def stop_node(container_name: str = "bench-node") -> None:
     console.print("[dim]Stopping node...[/dim]")
     docker_stop(container_name)
     console.print("[green]Node stopped[/green]")
+    docker_rm(container_name)
 
 
 def wait_for_node_ready(timeout: int = 120) -> None:
@@ -120,9 +136,17 @@ def wait_for_node_ready(timeout: int = 120) -> None:
         try:
             # Check HTTP RPC (no JWT required)
             result = run(
-                ["curl", "-s", "-X", "POST", "-H", "Content-Type: application/json",
-                 "-d", '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}',
-                 f"http://localhost:{HTTP_PORT}"],
+                [
+                    "curl",
+                    "-s",
+                    "-X",
+                    "POST",
+                    "-H",
+                    "Content-Type: application/json",
+                    "-d",
+                    '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}',
+                    f"http://localhost:{HTTP_PORT}",
+                ],
                 check=False,
                 capture=True,
             )
@@ -152,15 +176,24 @@ def run_reth_bench(
 
     console.print(f"[bold]Running reth-bench from {from_block} to {to_block}...[/bold]")
 
-    run([
-        "reth-bench", "new-payload-fcu",
-        "--rpc-url", rpc_url,
-        "--from", str(from_block),
-        "--to", str(to_block),
-        "--engine-rpc-url", f"http://localhost:{ENGINE_PORT}",
-        "--jwt-secret", str(jwt_secret),
-        "--output", str(output_file),
-    ])
+    run(
+        [
+            "reth-bench",
+            "new-payload-fcu",
+            "--rpc-url",
+            rpc_url,
+            "--from",
+            str(from_block),
+            "--to",
+            str(to_block),
+            "--engine-rpc-url",
+            f"http://localhost:{ENGINE_PORT}",
+            "--jwt-secret",
+            str(jwt_secret),
+            "--output",
+            str(output_file),
+        ]
+    )
 
     console.print(f"[green]Benchmark complete: {output_file}[/green]")
     return output_file
@@ -230,11 +263,13 @@ def run_benchmark(config: BenchmarkConfig) -> list[RunResult]:
 
             duration = time.time() - start_time
 
-            results.append(RunResult(
-                run_number=run_num,
-                output_file=output_file,
-                duration_seconds=duration,
-            ))
+            results.append(
+                RunResult(
+                    run_number=run_num,
+                    output_file=output_file,
+                    duration_seconds=duration,
+                )
+            )
 
         finally:
             # Always stop node
