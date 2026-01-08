@@ -11,7 +11,6 @@ class Client:
     networks: list[str]
     image: str
     chain_flag: dict[str, str]  # network -> chain flag
-    unwind_cmd: list[str] | None = None  # Command to unwind (reth/op-reth only)
 
 
 # All supported clients
@@ -21,14 +20,12 @@ CLIENTS: dict[str, Client] = {
         networks=["ethereum-mainnet"],
         image="ghcr.io/paradigmxyz/reth",
         chain_flag={"ethereum-mainnet": "--chain mainnet"},
-        unwind_cmd=["stage", "unwind", "to-block"],
     ),
     "op-reth": Client(
         name="op-reth",
         networks=["worldchain-mainnet"],
         image="ghcr.io/paradigmxyz/op-reth",
         chain_flag={"worldchain-mainnet": "--chain worldchain"},
-        unwind_cmd=["stage", "unwind", "to-block"],
     ),
     "nethermind": Client(
         name="nethermind",
@@ -128,20 +125,3 @@ def get_node_cmd(client_name: str, network: str, datadir: str = "/data") -> list
     raise ValueError(f"No node command defined for {client_name}")
 
 
-def get_unwind_cmd(client_name: str, network: str, block: int, datadir: str = "/data") -> list[str] | None:
-    """Get the command to unwind a client to a specific block."""
-    client = get_client(client_name)
-
-    if client.unwind_cmd is None:
-        return None
-
-    chain_flag = client.chain_flag.get(network, "")
-
-    if client_name in ("reth", "op-reth"):
-        cmd = ["stage", "unwind", "--datadir", datadir]
-        if chain_flag:
-            cmd.extend(chain_flag.split())
-        cmd.extend(["to-block", str(block)])
-        return cmd
-
-    return None
