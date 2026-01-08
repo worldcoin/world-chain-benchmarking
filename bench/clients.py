@@ -96,6 +96,7 @@ def get_node_cmd(client_name: str, network: str, datadir: str = "/data") -> list
             "--http.api", "admin,net,eth,web3,debug,trace",
             "--authrpc.addr", "0.0.0.0",
             "--authrpc.port", "8551",
+            "--engine.accept-execution-requests-hash",
         ]
         if chain_flag:
             cmd.extend(chain_flag.split())
