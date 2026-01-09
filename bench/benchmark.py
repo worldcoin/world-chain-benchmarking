@@ -52,6 +52,7 @@ class BenchmarkConfig:
     to_block: int
     runs: int
     data_dir: str
+    beacon_api_url: str
 
 
 @dataclass
@@ -151,6 +152,7 @@ def run_reth_bench(
     to_block: int,
     output_dir: Path,
     jwt_secret: Path,
+    beacon_api_url: str,
 ) -> Path:
     """Run reth-bench new-payload-fcu.
 
@@ -177,6 +179,9 @@ def run_reth_bench(
             str(jwt_secret),
             "--output",
             str(output_file),
+            "--full-requests",
+            "--beacon-api-url",
+            beacon_api_url,
         ]
     )
 
@@ -244,6 +249,7 @@ def run_benchmark(config: BenchmarkConfig) -> list[RunResult]:
                     config.to_block,
                     results_dir,
                     jwt_secret,
+                    config.beacon_api_url,
                 )
 
                 duration = time.time() - start_time

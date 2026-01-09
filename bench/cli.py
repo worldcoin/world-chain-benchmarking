@@ -30,7 +30,8 @@ def cli():
 @click.option("--version", default="latest", help="Client version (tag, e.g., v1.0.0 or 'latest')")
 @click.option("--runs", default=3, help="Number of benchmark runs")
 @click.option("--data-dir", default="/data", help="Data directory")
-def run(client: str, network: str, from_block: int, to_block: int, version: str, runs: int, data_dir: str):
+@click.option("--beacon-api-url", envvar="BEACON_API_URL", required=True, help="Beacon API URL for fetching execution requests")
+def run(client: str, network: str, from_block: int, to_block: int, version: str, runs: int, data_dir: str, beacon_api_url: str):
     """Run benchmark for a client on a network.
 
     Example:
@@ -52,6 +53,7 @@ def run(client: str, network: str, from_block: int, to_block: int, version: str,
         to_block=to_block,
         runs=runs,
         data_dir=data_dir,
+        beacon_api_url=beacon_api_url,
     )
 
     run_benchmark(config)
@@ -111,7 +113,8 @@ def upload(results_dir: str, bucket: str):
 @click.option("--network", default="ethereum-mainnet", type=click.Choice(NETWORKS), help="Network")
 @click.option("--version", default="latest", help="Client version")
 @click.option("--data-dir", default="/data", help="Data directory")
-def profile(client: str, from_block: int, to_block: int, profiler: str, network: str, version: str, data_dir: str):
+@click.option("--beacon-api-url", envvar="BEACON_API_URL", required=True, help="Beacon API URL for fetching execution requests")
+def profile(client: str, from_block: int, to_block: int, profiler: str, network: str, version: str, data_dir: str, beacon_api_url: str):
     """Run profiled benchmark (reth/op-reth only).
 
     Example:
@@ -131,6 +134,7 @@ def profile(client: str, from_block: int, to_block: int, profiler: str, network:
         from_block=from_block,
         to_block=to_block,
         data_dir=data_dir,
+        beacon_api_url=beacon_api_url,
         profiler=profiler,
         version=version,
     )

@@ -60,6 +60,7 @@ def run_profiled_benchmark(
     from_block: int,
     to_block: int,
     data_dir: str,
+    beacon_api_url: str,
     profiler: str = "perf",
     version: str = "latest",
 ) -> Path:
@@ -147,6 +148,8 @@ def run_profiled_benchmark(
                 "--to", str(to_block),
                 "--engine-rpc-url", f"http://localhost:{ENGINE_PORT}",
                 "--output", str(bench_output),
+                "--full-requests",
+                "--beacon-api-url", beacon_api_url,
             ])
 
         finally:
@@ -192,6 +195,8 @@ def run_profiled_benchmark(
                 "--to", str(to_block),
                 "--engine-rpc-url", f"http://localhost:{ENGINE_PORT}",
                 "--output", str(bench_output),
+                "--full-requests",
+                "--beacon-api-url", beacon_api_url,
             ])
 
         finally:
