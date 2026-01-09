@@ -39,8 +39,13 @@ source "$HOME/.local/bin/env"
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 source "$HOME/.cargo/env"
 
+# Install Foundry (forge, cast, anvil, chisel)
+curl -L https://foundry.paradigm.xyz | bash
+source "$HOME/.bashrc"
+foundryup
+
 # Clone and build reth-bench
-git clone https://github.com/paradigmxyz/reth.git
+git clone https://github.com/dzejkop/reth.git
 cd reth
 make install-reth-bench
 cd ~
