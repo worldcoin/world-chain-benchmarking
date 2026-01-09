@@ -103,8 +103,10 @@ def get_node_cmd(client_name: str, network: str, datadir: str = "/data") -> list
         return cmd
 
     elif client_name == "nethermind":
+        db_subdir = "worldchain" if "worldchain" in network else "mainnet"
         cmd = [
             "--datadir", datadir,
+            "--Init.BaseDbPath", f"{datadir}/{db_subdir}",
             "--JsonRpc.Enabled", "true",
             "--JsonRpc.Host", "0.0.0.0",
             "--JsonRpc.EngineHost", "0.0.0.0",
