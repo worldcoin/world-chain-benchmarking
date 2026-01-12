@@ -1,7 +1,9 @@
 """Benchmark execution using reth-bench."""
 
+import csv
 import json
 import secrets
+import statistics
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -60,7 +62,7 @@ class RunResult:
     """Result of a single benchmark run."""
 
     run_number: int
-    output_file: Path
+    output_dir: Path
     duration_seconds: float
 
 
@@ -153,13 +155,14 @@ def run_reth_bench(
     output_dir: Path,
     jwt_secret: Path,
     beacon_api_url: str,
+    run_number: int,
 ) -> Path:
     """Run reth-bench new-payload-fcu.
 
-    Returns path to output file.
+    Returns path to output directory for this run.
     """
     rpc_url = get_rpc_url(network)
-    output_file = output_dir / f"bench_{from_block}_{to_block}.json"
+    run_output_dir = output_dir / str(run_number)
 
     console.print(f"[bold]Running reth-bench from {from_block} to {to_block}...[/bold]")
 
@@ -178,15 +181,87 @@ def run_reth_bench(
             "--jwt-secret",
             str(jwt_secret),
             "--output",
-            str(output_file),
+            str(run_output_dir),
             "--full-requests",
             "--beacon-api-url",
             beacon_api_url,
         ]
     )
 
-    console.print(f"[green]Benchmark complete: {output_file}[/green]")
-    return output_file
+    console.print(f"[green]Benchmark complete: {run_output_dir}[/green]")
+    return run_output_dir
+
+
+def aggregate_results(results_dir: Path, num_runs: int) -> Path:
+    """Aggregate benchmark results across multiple runs.
+
+    Computes mean, median, and stddev for latency metrics across runs.
+
+    Args:
+        results_dir: Directory containing run subdirectories (1/, 2/, etc.)
+        num_runs: Number of runs to aggregate
+
+    Returns:
+        Path to the aggregated results CSV file.
+    """
+    # Collect data from all runs, keyed by block_number
+    # block_data[block_num] = {field: [values across runs]}
+    block_data: dict[int, dict[str, list]] = {}
+
+    latency_fields = ["new_payload_latency", "fcu_latency", "total_latency"]
+
+    for run_num in range(1, num_runs + 1):
+        csv_path = results_dir / str(run_num) / "combined_latency.csv"
+        if not csv_path.exists():
+            console.print(f"[yellow]Warning: {csv_path} not found, skipping[/yellow]")
+            continue
+
+        with open(csv_path, newline="") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                block_num = int(row["block_number"])
+                if block_num not in block_data:
+                    block_data[block_num] = {
+                        "transaction_count": int(row["transaction_count"]),
+                        "gas_used": int(row["gas_used"]),
+                    }
+                    for field in latency_fields:
+                        block_data[block_num][field] = []
+
+                for field in latency_fields:
+                    block_data[block_num][field].append(int(row[field]))
+
+    # Compute statistics and write output
+    output_path = results_dir / "aggregated_latency.csv"
+    fieldnames = ["block_number", "transaction_count", "gas_used"]
+    for field in latency_fields:
+        fieldnames.extend([f"{field}_mean", f"{field}_median", f"{field}_stddev"])
+
+    with open(output_path, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+
+        for block_num in sorted(block_data.keys()):
+            data = block_data[block_num]
+            row = {
+                "block_number": block_num,
+                "transaction_count": data["transaction_count"],
+                "gas_used": data["gas_used"],
+            }
+            for field in latency_fields:
+                values = data[field]
+                if len(values) > 0:
+                    row[f"{field}_mean"] = round(statistics.mean(values), 2)
+                    row[f"{field}_median"] = round(statistics.median(values), 2)
+                    row[f"{field}_stddev"] = round(statistics.stdev(values), 2) if len(values) > 1 else 0
+                else:
+                    row[f"{field}_mean"] = 0
+                    row[f"{field}_median"] = 0
+                    row[f"{field}_stddev"] = 0
+            writer.writerow(row)
+
+    console.print(f"[green]Aggregated results: {output_path}[/green]")
+    return output_path
 
 
 def run_benchmark(config: BenchmarkConfig) -> list[RunResult]:
@@ -201,7 +276,7 @@ def run_benchmark(config: BenchmarkConfig) -> list[RunResult]:
 
     run_id = generate_run_id()
     snapshot_path = get_snapshot_path(config.client, config.data_dir)
-    results_dir = Path(config.data_dir) / "results" / run_id
+    results_dir = Path(config.data_dir) / "results" / config.network / config.client / run_id
     results_dir.mkdir(parents=True, exist_ok=True)
 
     console.print(f"\n[bold blue]Starting benchmark run: {run_id}[/bold blue]")
@@ -243,13 +318,14 @@ def run_benchmark(config: BenchmarkConfig) -> list[RunResult]:
                 wait_for_node_ready()
 
                 # Run benchmark
-                output_file = run_reth_bench(
+                output_dir = run_reth_bench(
                     config.network,
                     config.from_block,
                     config.to_block,
                     results_dir,
                     jwt_secret,
                     config.beacon_api_url,
+                    run_num,
                 )
 
                 duration = time.time() - start_time
@@ -257,7 +333,7 @@ def run_benchmark(config: BenchmarkConfig) -> list[RunResult]:
                 results.append(
                     RunResult(
                         run_number=run_num,
-                        output_file=output_file,
+                        output_dir=output_dir,
                         duration_seconds=duration,
                     )
                 )
@@ -267,6 +343,9 @@ def run_benchmark(config: BenchmarkConfig) -> list[RunResult]:
                 stop_node()
 
         # Overlay is unmounted and cleaned up here, snapshot unchanged
+
+    # Aggregate results across all runs
+    aggregated_file = aggregate_results(results_dir, config.runs)
 
     # Save run metadata
     metadata = {
@@ -279,10 +358,11 @@ def run_benchmark(config: BenchmarkConfig) -> list[RunResult]:
             "to": config.to_block,
         },
         "runs": config.runs,
+        "aggregated_results": str(aggregated_file),
         "results": [
             {
                 "run_number": r.run_number,
-                "output_file": str(r.output_file),
+                "output_dir": str(r.output_dir),
                 "duration_seconds": r.duration_seconds,
             }
             for r in results
