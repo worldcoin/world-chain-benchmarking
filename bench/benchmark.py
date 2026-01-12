@@ -237,6 +237,8 @@ def aggregate_results(results_dir: Path, num_runs: int) -> Path:
     for field in latency_fields:
         fieldnames.extend([f"{field}_mean", f"{field}_median", f"{field}_stddev"])
 
+    all_mgas_per_sec: list[float] = []
+
     with open(output_path, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
@@ -258,13 +260,21 @@ def aggregate_results(results_dir: Path, num_runs: int) -> Path:
             # Compute MGas/s from gas_used and mean total latency (latency is in μs)
             total_latency_mean = row["total_latency_mean"]
             if total_latency_mean > 0:
-                row["mgas_per_sec"] = round(data["gas_used"] / total_latency_mean, 2)
+                mgas = data["gas_used"] / total_latency_mean
+                row["mgas_per_sec"] = round(mgas, 2)
+                all_mgas_per_sec.append(mgas)
             else:
                 row["mgas_per_sec"] = 0
 
             writer.writerow(row)
 
     console.print(f"[green]Aggregated results: {output_path}[/green]")
+
+    # Print overall MGas/s summary
+    if len(all_mgas_per_sec) > 1:
+        avg_mgas = statistics.mean(all_mgas_per_sec)
+        std_mgas = statistics.stdev(all_mgas_per_sec)
+        console.print(f"\n[bold]Overall: {avg_mgas:.2f} ± {std_mgas:.2f} MGas/s[/bold]")
     return output_path
 
 
