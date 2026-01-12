@@ -233,7 +233,7 @@ def aggregate_results(results_dir: Path, num_runs: int) -> Path:
 
     # Compute statistics and write output
     output_path = results_dir / "aggregated_latency.csv"
-    fieldnames = ["block_number", "transaction_count", "gas_used", "mgas_per_sec"]
+    fieldnames = ["block_number", "mgas_per_sec"]
     for field in latency_fields:
         fieldnames.extend([f"{field}_mean", f"{field}_median", f"{field}_stddev"])
 
@@ -243,11 +243,7 @@ def aggregate_results(results_dir: Path, num_runs: int) -> Path:
 
         for block_num in sorted(block_data.keys()):
             data = block_data[block_num]
-            row = {
-                "block_number": block_num,
-                "transaction_count": data["transaction_count"],
-                "gas_used": data["gas_used"],
-            }
+            row = {"block_number": block_num}
             for field in latency_fields:
                 values = data[field]
                 if len(values) > 0:
