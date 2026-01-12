@@ -41,7 +41,7 @@ source "$HOME/.cargo/env"
 
 # Install Foundry (forge, cast, anvil, chisel)
 curl -L https://foundry.paradigm.xyz | bash
-source "$HOME/.bashrc"
+export PATH="$HOME/.foundry/bin:$PATH"
 foundryup
 
 # Clone and build reth-bench
