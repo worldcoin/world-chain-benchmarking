@@ -3,6 +3,7 @@
 import csv
 import json
 import secrets
+import shutil
 import statistics
 import time
 from dataclasses import dataclass
@@ -15,8 +16,7 @@ from .clients import (
     get_node_cmd,
     validate_client_network,
 )
-from .overlay import overlay_mount
-from .snapshots import get_rpc_url, get_snapshot_path
+from .snapshots import extract_archive, get_archive_path, get_rpc_url
 from .utils import (
     clear_caches,
     docker_stop,
@@ -281,24 +281,30 @@ def aggregate_results(results_dir: Path, num_runs: int) -> Path:
 def run_benchmark(config: BenchmarkConfig) -> list[RunResult]:
     """Run a complete benchmark with multiple runs.
 
-    Each run uses an isolated overlayfs mount so that the base snapshot
-    remains unchanged between runs.
+    Each run extracts a fresh copy of the snapshot archive to ensure
+    clean state between runs.
 
     Returns list of run results.
     """
     validate_client_network(config.client, config.network)
 
     run_id = generate_run_id()
-    snapshot_path = get_snapshot_path(config.client, config.data_dir)
+    archive_path = get_archive_path(config.client, config.data_dir)
     results_dir = Path(config.data_dir) / "results" / config.network / config.client / run_id
     results_dir.mkdir(parents=True, exist_ok=True)
+
+    if not archive_path.exists():
+        raise FileNotFoundError(
+            f"Archive not found: {archive_path}\n"
+            f"Run 'bench snapshot {config.client} {config.network} --block <N>' first."
+        )
 
     console.print(f"\n[bold blue]Starting benchmark run: {run_id}[/bold blue]")
     console.print(f"  Client: {config.client} ({config.version})")
     console.print(f"  Network: {config.network}")
     console.print(f"  Blocks: {config.from_block} -> {config.to_block}")
     console.print(f"  Runs: {config.runs}")
-    console.print(f"  Snapshot: {snapshot_path}")
+    console.print(f"  Archive: {archive_path}")
     console.print()
 
     results: list[RunResult] = []
@@ -306,24 +312,27 @@ def run_benchmark(config: BenchmarkConfig) -> list[RunResult]:
     for run_num in range(1, config.runs + 1):
         console.print(f"\n[bold]Run {run_num}/{config.runs}[/bold]")
 
-        # Setup overlay for this run
-        overlay_base = Path(config.data_dir) / "overlays" / f"{run_id}_{run_num}"
+        # Extract fresh copy of archive for this run
+        run_data_dir = Path(config.data_dir) / "runs" / f"{run_id}_{run_num}"
 
-        with overlay_mount(snapshot_path, overlay_base, f"bench-{run_num}") as merged_path:
+        try:
+            # Extract archive
+            extract_archive(archive_path, run_data_dir)
+
             # Clear caches before each run
             clear_caches()
             time.sleep(2)
 
             # Generate JWT secret for Engine API auth
-            jwt_secret = merged_path / "jwt.hex"
+            jwt_secret = run_data_dir / "jwt.hex"
             generate_jwt_secret(jwt_secret)
 
-            # Start node with overlay-mounted datadir
+            # Start node with extracted datadir
             start_time = time.time()
             container_id = start_node(
                 config.client,
                 config.network,
-                merged_path,
+                run_data_dir,
                 config.version,
             )
 
@@ -353,10 +362,13 @@ def run_benchmark(config: BenchmarkConfig) -> list[RunResult]:
                 )
 
             finally:
-                # Always stop node before unmounting overlay
+                # Always stop node before cleanup
                 stop_node()
 
-        # Overlay is unmounted and cleaned up here, snapshot unchanged
+        finally:
+            # Clean up extracted data after each run
+            console.print(f"[dim]Cleaning up {run_data_dir}...[/dim]")
+            shutil.rmtree(run_data_dir, ignore_errors=True)
 
     # Aggregate results across all runs
     aggregated_file = aggregate_results(results_dir, config.runs)

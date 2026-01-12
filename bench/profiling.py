@@ -1,12 +1,13 @@
 """Profiling support for reth/op-reth using perf and samply."""
 
+import shutil
 import time
 from pathlib import Path
 
 from rich.console import Console
 
-from .clients import get_docker_image, get_node_cmd, validate_client_network
-from .snapshots import get_rpc_url, get_snapshot_path
+from .clients import get_node_cmd, validate_client_network
+from .snapshots import extract_archive, get_archive_path, get_rpc_url
 from .utils import clear_caches, docker_stop, generate_run_id, run, run_docker
 
 console = Console()
@@ -67,6 +68,7 @@ def run_profiled_benchmark(
     """Run a profiled benchmark.
 
     Note: This runs the node natively (not in Docker) to enable profiling.
+    Extracts a fresh copy of the snapshot archive for the profiling run.
 
     Args:
         client_name: Client to profile (reth or op-reth)
@@ -87,127 +89,144 @@ def run_profiled_benchmark(
     output_dir = Path(data_dir) / "profiling" / run_id
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    archive_path = get_archive_path(client_name, data_dir)
+    if not archive_path.exists():
+        raise FileNotFoundError(
+            f"Archive not found: {archive_path}\n"
+            f"Run 'bench snapshot {client_name} {network} --block <N>' first."
+        )
+
     console.print(f"\n[bold blue]Starting profiled benchmark: {run_id}[/bold blue]")
     console.print(f"  Client: {client_name} ({version})")
     console.print(f"  Network: {network}")
     console.print(f"  Blocks: {from_block} -> {to_block}")
     console.print(f"  Profiler: {profiler}")
+    console.print(f"  Archive: {archive_path}")
     console.print()
 
-    # Configure system
-    configure_profiling()
+    # Extract fresh copy of archive for this run
+    run_data_dir = Path(data_dir) / "runs" / f"profile_{run_id}"
+    extract_archive(archive_path, run_data_dir)
 
-    # Clear caches
-    clear_caches()
+    try:
+        # Configure system
+        configure_profiling()
 
-    # For profiling, we need to run the node natively (not in Docker)
-    # This requires reth/op-reth to be installed locally
-    snapshot_path = get_snapshot_path(client_name, data_dir)
-    rpc_url = get_rpc_url(network)
+        # Clear caches
+        clear_caches()
 
-    # Get the binary name
-    binary = "op-reth" if client_name == "op-reth" else "reth"
+        # For profiling, we need to run the node natively (not in Docker)
+        # This requires reth/op-reth to be installed locally
+        rpc_url = get_rpc_url(network)
 
-    # Build node command
-    node_cmd = get_node_cmd(client_name, network, datadir=str(snapshot_path))
-    full_node_cmd = [binary] + node_cmd
+        # Get the binary name
+        binary = "op-reth" if client_name == "op-reth" else "reth"
 
-    console.print(f"[bold]Starting {client_name} node with profiling...[/bold]")
+        # Build node command
+        node_cmd = get_node_cmd(client_name, network, datadir=str(run_data_dir))
+        full_node_cmd = [binary] + node_cmd
 
-    if profiler == "perf":
-        # Run with perf record
-        perf_output = output_dir / "perf.data"
-        profiled_cmd = [
-            "perf", "record",
-            "-F", "99",  # 99 Hz sampling
-            "-g",  # Call graph
-            "-o", str(perf_output),
-            "--",
-        ] + full_node_cmd
+        console.print(f"[bold]Starting {client_name} node with profiling...[/bold]")
 
-        # Start node in background
-        import subprocess
-        node_process = subprocess.Popen(
-            profiled_cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
+        if profiler == "perf":
+            # Run with perf record
+            perf_output = output_dir / "perf.data"
+            profiled_cmd = [
+                "perf", "record",
+                "-F", "99",  # 99 Hz sampling
+                "-g",  # Call graph
+                "-o", str(perf_output),
+                "--",
+            ] + full_node_cmd
 
-        try:
-            # Wait for node to be ready
-            console.print("[dim]Waiting for node to be ready...[/dim]")
-            time.sleep(30)  # Give node time to start
+            # Start node in background
+            import subprocess
+            node_process = subprocess.Popen(
+                profiled_cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
 
-            # Run reth-bench
-            console.print(f"[bold]Running reth-bench from {from_block} to {to_block}...[/bold]")
-            bench_output = output_dir / "bench.json"
-            run([
-                "reth-bench", "new-payload-fcu",
-                "--rpc-url", rpc_url,
-                "--from", str(from_block),
-                "--to", str(to_block),
-                "--engine-rpc-url", f"http://localhost:{ENGINE_PORT}",
-                "--output", str(bench_output),
-                "--full-requests",
-                "--beacon-api-url", beacon_api_url,
-            ])
+            try:
+                # Wait for node to be ready
+                console.print("[dim]Waiting for node to be ready...[/dim]")
+                time.sleep(30)  # Give node time to start
 
-        finally:
-            # Stop node
-            console.print("[dim]Stopping node...[/dim]")
-            node_process.terminate()
-            node_process.wait(timeout=30)
+                # Run reth-bench
+                console.print(f"[bold]Running reth-bench from {from_block} to {to_block}...[/bold]")
+                bench_output = output_dir / "bench.json"
+                run([
+                    "reth-bench", "new-payload-fcu",
+                    "--rpc-url", rpc_url,
+                    "--from", str(from_block),
+                    "--to", str(to_block),
+                    "--engine-rpc-url", f"http://localhost:{ENGINE_PORT}",
+                    "--output", str(bench_output),
+                    "--full-requests",
+                    "--beacon-api-url", beacon_api_url,
+                ])
 
-        # Generate flamegraph
-        console.print("[dim]Generating flamegraph...[/dim]")
-        flamegraph_svg = output_dir / "flamegraph.svg"
-        run(
-            f"perf script -i {perf_output} | inferno-collapse-perf | inferno-flamegraph > {flamegraph_svg}",
-            check=False,
-        )
+            finally:
+                # Stop node
+                console.print("[dim]Stopping node...[/dim]")
+                node_process.terminate()
+                node_process.wait(timeout=30)
 
-    elif profiler == "samply":
-        # Run with samply
-        samply_output = output_dir / "samply.json"
-        profiled_cmd = [
-            "samply", "record",
-            "-o", str(samply_output),
-            "--",
-        ] + full_node_cmd
+            # Generate flamegraph
+            console.print("[dim]Generating flamegraph...[/dim]")
+            flamegraph_svg = output_dir / "flamegraph.svg"
+            run(
+                f"perf script -i {perf_output} | inferno-collapse-perf | inferno-flamegraph > {flamegraph_svg}",
+                check=False,
+            )
 
-        import subprocess
-        node_process = subprocess.Popen(
-            profiled_cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
+        elif profiler == "samply":
+            # Run with samply
+            samply_output = output_dir / "samply.json"
+            profiled_cmd = [
+                "samply", "record",
+                "-o", str(samply_output),
+                "--",
+            ] + full_node_cmd
 
-        try:
-            console.print("[dim]Waiting for node to be ready...[/dim]")
-            time.sleep(30)
+            import subprocess
+            node_process = subprocess.Popen(
+                profiled_cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
 
-            console.print(f"[bold]Running reth-bench from {from_block} to {to_block}...[/bold]")
-            bench_output = output_dir / "bench.json"
-            run([
-                "reth-bench", "new-payload-fcu",
-                "--rpc-url", rpc_url,
-                "--from", str(from_block),
-                "--to", str(to_block),
-                "--engine-rpc-url", f"http://localhost:{ENGINE_PORT}",
-                "--output", str(bench_output),
-                "--full-requests",
-                "--beacon-api-url", beacon_api_url,
-            ])
+            try:
+                console.print("[dim]Waiting for node to be ready...[/dim]")
+                time.sleep(30)
 
-        finally:
-            console.print("[dim]Stopping node...[/dim]")
-            node_process.terminate()
-            node_process.wait(timeout=30)
+                console.print(f"[bold]Running reth-bench from {from_block} to {to_block}...[/bold]")
+                bench_output = output_dir / "bench.json"
+                run([
+                    "reth-bench", "new-payload-fcu",
+                    "--rpc-url", rpc_url,
+                    "--from", str(from_block),
+                    "--to", str(to_block),
+                    "--engine-rpc-url", f"http://localhost:{ENGINE_PORT}",
+                    "--output", str(bench_output),
+                    "--full-requests",
+                    "--beacon-api-url", beacon_api_url,
+                ])
 
-    else:
-        raise ValueError(f"Unknown profiler: {profiler}")
+            finally:
+                console.print("[dim]Stopping node...[/dim]")
+                node_process.terminate()
+                node_process.wait(timeout=30)
 
-    console.print(f"\n[bold green]Profiling complete![/bold green]")
-    console.print(f"Results saved to: {output_dir}")
+        else:
+            raise ValueError(f"Unknown profiler: {profiler}")
+
+        console.print(f"\n[bold green]Profiling complete![/bold green]")
+        console.print(f"Results saved to: {output_dir}")
+
+    finally:
+        # Clean up extracted data
+        console.print(f"[dim]Cleaning up {run_data_dir}...[/dim]")
+        shutil.rmtree(run_data_dir, ignore_errors=True)
 
     return output_dir
