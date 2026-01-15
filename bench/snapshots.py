@@ -5,7 +5,7 @@ from pathlib import Path
 
 from rich.console import Console
 
-from .clients import validate_client_network
+from .clients import get_client
 from .utils import run
 
 console = Console()
@@ -45,7 +45,7 @@ def get_snapshot_url(client_name: str, network: str, block: int) -> tuple[str, s
     Returns:
         (url, compression) where compression is 'zst' or 'lz4'
     """
-    validate_client_network(client_name, network)
+    get_client(client_name).validate_network(network)
 
     if network == "ethereum-mainnet":
         # ethpandaops snapshots
@@ -84,7 +84,7 @@ def download_snapshot(
     Returns:
         Path to downloaded archive file
     """
-    validate_client_network(client_name, network)
+    get_client(client_name).validate_network(network)
 
     url, compression = get_snapshot_url(client_name, network, block)
     archive_dir = Path(data_dir) / "archives" / client_name

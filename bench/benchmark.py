@@ -11,11 +11,7 @@ from pathlib import Path
 
 from rich.console import Console
 
-from .clients import (
-    get_client,
-    get_node_cmd,
-    validate_client_network,
-)
+from .clients import get_client
 from .snapshots import extract_archive, get_archive_path, get_rpc_url
 from .utils import (
     clear_caches,
@@ -83,10 +79,11 @@ def start_node(
     Returns:
         Container ID.
     """
-    validate_client_network(client_name, network)
+    client = get_client(client_name)
+    client.validate_network(network)
 
-    image = get_client(client_name).image
-    node_cmd = get_node_cmd(client_name, network, datadir="/data")
+    image = client.image
+    node_cmd = client.get_node_cmd(network, datadir="/data")
 
     console.print(f"[bold]Starting {client_name} node...[/bold]")
     console.print(f"  Image: {image}")
@@ -284,7 +281,7 @@ def run_benchmark(config: BenchmarkConfig) -> list[RunResult]:
 
     Returns list of run results.
     """
-    validate_client_network(config.client, config.network)
+    get_client(config.client).validate_network(config.network)
 
     run_id = generate_run_id()
     archive_path = get_archive_path(config.client, config.data_dir)

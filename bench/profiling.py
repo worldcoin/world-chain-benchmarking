@@ -6,7 +6,7 @@ from pathlib import Path
 
 from rich.console import Console
 
-from .clients import get_node_cmd, validate_client_network
+from .clients import get_client
 from .snapshots import extract_archive, get_archive_path, get_rpc_url
 from .utils import clear_caches, docker_stop, generate_run_id, run, run_docker
 
@@ -83,7 +83,7 @@ def run_profiled_benchmark(
         Path to profiling output directory
     """
     validate_profiling_client(client_name)
-    validate_client_network(client_name, network)
+    get_client(client_name).validate_network(network)
 
     run_id = generate_run_id()
     output_dir = Path(data_dir) / "profiling" / run_id
@@ -123,7 +123,7 @@ def run_profiled_benchmark(
         binary = "op-reth" if client_name == "op-reth" else "reth"
 
         # Build node command
-        node_cmd = get_node_cmd(client_name, network, datadir=str(run_data_dir))
+        node_cmd = get_client(client_name).get_node_cmd(network, datadir=str(run_data_dir))
         full_node_cmd = [binary] + node_cmd
 
         console.print(f"[bold]Starting {client_name} node with profiling...[/bold]")

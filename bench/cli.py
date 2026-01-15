@@ -4,7 +4,7 @@ import click
 from rich.console import Console
 
 from .benchmark import BenchmarkConfig, run_benchmark
-from .clients import CLIENTS, validate_client_network
+from .clients import CLIENTS, get_client
 from .profiling import run_profiled_benchmark
 from .results import upload_results
 from .snapshots import download_snapshot
@@ -38,7 +38,7 @@ def run(client: str, network: str, from_block: int, to_block: int, version: str,
         bench run op-reth worldchain-mainnet --from 24175000 --to 24176000
     """
     try:
-        validate_client_network(client, network)
+        get_client(client).validate_network(network)
     except ValueError as e:
         raise click.ClickException(str(e))
 
@@ -71,7 +71,7 @@ def snapshot(client: str, network: str, block: int, data_dir: str):
         bench snapshot op-reth worldchain-mainnet --block 24175000
     """
     try:
-        validate_client_network(client, network)
+        get_client(client).validate_network(network)
     except ValueError as e:
         raise click.ClickException(str(e))
 
@@ -121,7 +121,7 @@ def profile(client: str, from_block: int, to_block: int, profiler: str, network:
         bench profile reth --from 19000000 --to 19000100 --profiler perf
     """
     try:
-        validate_client_network(client, network)
+        get_client(client).validate_network(network)
     except ValueError as e:
         raise click.ClickException(str(e))
 
