@@ -18,19 +18,19 @@ CLIENTS: dict[str, Client] = {
     "reth": Client(
         name="reth",
         networks=["ethereum-mainnet"],
-        image="ghcr.io/paradigmxyz/reth",
+        image="ghcr.io/paradigmxyz/reth:latest",
         chain_flag={"ethereum-mainnet": "--chain mainnet"},
     ),
     "op-reth": Client(
         name="op-reth",
         networks=["worldchain-mainnet"],
-        image="ghcr.io/paradigmxyz/op-reth",
+        image="ghcr.io/paradigmxyz/op-reth:latest",
         chain_flag={"worldchain-mainnet": "--chain worldchain"},
     ),
     "nethermind": Client(
         name="nethermind",
         networks=["ethereum-mainnet", "worldchain-mainnet"],
-        image="nethermind/nethermind",
+        image="nethermind/nethermind:latest",
         chain_flag={
             "ethereum-mainnet": "--config mainnet",
             "worldchain-mainnet": "--config worldchain",
@@ -39,13 +39,13 @@ CLIENTS: dict[str, Client] = {
     "geth": Client(
         name="geth",
         networks=["ethereum-mainnet"],
-        image="ethereum/client-go",
+        image="ethpandaops/geth:performance",
         chain_flag={"ethereum-mainnet": ""},
     ),
     "op-geth": Client(
         name="op-geth",
         networks=["worldchain-mainnet"],
-        image="us-docker.pkg.dev/oplabs-tools-artifacts/images/op-geth",
+        image="us-docker.pkg.dev/oplabs-tools-artifacts/images/op-geth:latest",
         chain_flag={"worldchain-mainnet": ""},
     ),
 }
@@ -64,19 +64,9 @@ def validate_client_network(client_name: str, network: str) -> None:
     client = get_client(client_name)
     if network not in client.networks:
         valid = ", ".join(client.networks)
-        raise ValueError(f"Client {client_name} does not support {network}. Valid networks: {valid}")
-
-
-def get_docker_image(client_name: str, version: str = "latest") -> str:
-    """Get Docker image tag for a client version."""
-    client = get_client(client_name)
-
-    # Handle special version names
-    if version in ("latest", "nightly"):
-        return f"{client.image}:{version}"
-
-    # Assume version is a tag (e.g., v1.0.0)
-    return f"{client.image}:{version}"
+        raise ValueError(
+            f"Client {client_name} does not support {network}. Valid networks: {valid}"
+        )
 
 
 def get_node_cmd(client_name: str, network: str, datadir: str = "/data") -> list[str]:
@@ -89,13 +79,19 @@ def get_node_cmd(client_name: str, network: str, datadir: str = "/data") -> list
     if client_name in ("reth", "op-reth"):
         cmd = [
             "node",
-            "--datadir", datadir,
+            "--datadir",
+            datadir,
             "--http",
-            "--http.addr", "0.0.0.0",
-            "--http.api", "admin,net,eth,web3,debug,trace",
-            "--authrpc.addr", "0.0.0.0",
-            "--authrpc.port", "8551",
-            "--authrpc.jwtsecret", jwt_path,
+            "--http.addr",
+            "0.0.0.0",
+            "--http.api",
+            "admin,net,eth,web3,debug,trace",
+            "--authrpc.addr",
+            "0.0.0.0",
+            "--authrpc.port",
+            "8551",
+            "--authrpc.jwtsecret",
+            jwt_path,
             "--engine.accept-execution-requests-hash",
         ]
         if chain_flag:
@@ -105,13 +101,20 @@ def get_node_cmd(client_name: str, network: str, datadir: str = "/data") -> list
     elif client_name == "nethermind":
         db_subdir = "worldchain" if "worldchain" in network else "mainnet"
         cmd = [
-            "--datadir", datadir,
-            "--Init.BaseDbPath", f"{datadir}/{db_subdir}",
-            "--JsonRpc.Enabled", "true",
-            "--JsonRpc.Host", "0.0.0.0",
-            "--JsonRpc.EngineHost", "0.0.0.0",
-            "--JsonRpc.EnginePort", "8551",
-            "--JsonRpc.JwtSecretFile", jwt_path,
+            "--datadir",
+            datadir,
+            "--Init.BaseDbPath",
+            f"{datadir}/{db_subdir}",
+            "--JsonRpc.Enabled",
+            "true",
+            "--JsonRpc.Host",
+            "0.0.0.0",
+            "--JsonRpc.EngineHost",
+            "0.0.0.0",
+            "--JsonRpc.EnginePort",
+            "8551",
+            "--JsonRpc.JwtSecretFile",
+            jwt_path,
         ]
         if chain_flag:
             cmd.extend(chain_flag.split())
@@ -119,16 +122,20 @@ def get_node_cmd(client_name: str, network: str, datadir: str = "/data") -> list
 
     elif client_name in ("geth", "op-geth"):
         cmd = [
-            "--datadir", datadir,
+            "--datadir",
+            datadir,
             "--http",
-            "--http.addr", "0.0.0.0",
-            "--http.api", "admin,net,eth,web3,debug",
-            "--authrpc.addr", "0.0.0.0",
-            "--authrpc.port", "8551",
-            "--authrpc.jwtsecret", jwt_path,
+            "--http.addr",
+            "0.0.0.0",
+            "--http.api",
+            "admin,net,eth,web3,debug",
+            "--authrpc.addr",
+            "0.0.0.0",
+            "--authrpc.port",
+            "8551",
+            "--authrpc.jwtsecret",
+            jwt_path,
         ]
         return cmd
 
     raise ValueError(f"No node command defined for {client_name}")
-
-

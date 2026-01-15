@@ -12,7 +12,7 @@ from pathlib import Path
 from rich.console import Console
 
 from .clients import (
-    get_docker_image,
+    get_client,
     get_node_cmd,
     validate_client_network,
 )
@@ -70,7 +70,6 @@ def start_node(
     client_name: str,
     network: str,
     datadir: Path,
-    version: str = "latest",
     container_name: str = "bench-node",
 ) -> str:
     """Start an execution client node for benchmarking.
@@ -79,7 +78,6 @@ def start_node(
         client_name: Name of the client (reth, geth, etc.)
         network: Network name (ethereum-mainnet, etc.)
         datadir: Path to mount as /data in the container
-        version: Docker image version tag
         container_name: Name for the Docker container
 
     Returns:
@@ -87,7 +85,7 @@ def start_node(
     """
     validate_client_network(client_name, network)
 
-    image = get_docker_image(client_name, version)
+    image = get_client(client_name).image
     node_cmd = get_node_cmd(client_name, network, datadir="/data")
 
     console.print(f"[bold]Starting {client_name} node...[/bold]")
@@ -333,7 +331,6 @@ def run_benchmark(config: BenchmarkConfig) -> list[RunResult]:
                 config.client,
                 config.network,
                 run_data_dir,
-                config.version,
             )
 
             try:
