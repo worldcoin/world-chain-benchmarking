@@ -29,5 +29,8 @@ down:
 ssh:
     @just --justfile terraform/Justfile ssh
 
+download-results:
+    @just --justfile terraform/Justfile download-results
+
 tf *args:
     @just --justfile terraform/Justfile {{args}}

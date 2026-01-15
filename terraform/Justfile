@@ -91,3 +91,7 @@ output:
 # Format Terraform files
 fmt:
     terraform fmt
+
+# Download results from instance
+download-results:
+    rsync -avz -e "ssh {{ssh_opts}} {{ssh_key}}" ubuntu@$(terraform output -raw public_ip):/data/results/ ../results/
