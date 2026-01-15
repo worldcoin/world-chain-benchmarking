@@ -1,3 +1,8 @@
+variable "prefix" {
+  description = "Prefix for all resource names (use your name/initials to avoid clashes)"
+  type        = string
+}
+
 variable "region" {
   description = "AWS region"
   type        = string
