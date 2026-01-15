@@ -139,6 +139,10 @@ class Geth(Client):
             jwt_path,
             "--state.scheme=path",
             "--cache.preimages",
+            "--nodiscover",
+            "--maxpeers=0",
+            "--mainnet",
+            "--syncmode=full",
         ]
 
 
