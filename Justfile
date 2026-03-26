@@ -1,7 +1,7 @@
 set dotenv-load
 
 ssh_opts := "-o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR"
-ssh_key := "-i benchmark-key.pem"
+ssh_key := "-i terraform/benchmark-key.pem"
 
 default:
     @just --list
@@ -11,21 +11,20 @@ init scenario:
     #!/usr/bin/env bash
     set -euo pipefail
 
-    # Validate scenario file exists
-    if [[ ! -f "{{scenario}}" ]]; then
-        echo "Error: scenario file '{{scenario}}' not found"
-        exit 1
-    fi
+    # Validate scenario
+    just validate "{{scenario}}"
+
+    # Parse region from scenario
+    REGION=$(yq -r '.region' "{{scenario}}")
 
     # Terraform apply
-    echo "==> Provisioning instance..."
-    cd terraform && terraform init -upgrade -input=false > /dev/null
-    terraform apply -auto-approve
+    echo "==> Provisioning instance in $REGION..."
+    terraform -chdir=terraform init -upgrade -input=false > /dev/null
+    terraform -chdir=terraform apply -auto-approve -var "region=$REGION"
 
-    IP=$(terraform output -raw public_ip)
+    IP=$(terraform -chdir=terraform output -raw public_ip)
     SSH="ssh {{ssh_opts}} {{ssh_key}} ubuntu@$IP"
     SCP="scp {{ssh_opts}} {{ssh_key}}"
-    cd ..
 
     # Wait for SSH + cloud-init
     echo "==> Waiting for SSH on $IP..."
@@ -64,8 +63,7 @@ init scenario:
 status:
     #!/usr/bin/env bash
     set -euo pipefail
-    cd terraform
-    IP=$(terraform output -raw public_ip)
+    IP=$(terraform -chdir=terraform output -raw public_ip)
     SSH="ssh {{ssh_opts}} {{ssh_key}} ubuntu@$IP"
     echo "--- Status ---"
     $SSH 'cat /data/setup/status 2>/dev/null || echo "no status file"'
@@ -77,12 +75,46 @@ status:
 ssh:
     #!/usr/bin/env bash
     set -euo pipefail
-    cd terraform
-    IP=$(terraform output -raw public_ip)
+    IP=$(terraform -chdir=terraform output -raw public_ip)
     echo "Waiting for SSH on $IP..."
     until ssh {{ssh_opts}} {{ssh_key}} ubuntu@$IP true 2>/dev/null; do sleep 2; done
     ssh {{ssh_opts}} {{ssh_key}} ubuntu@$IP
 
+# Validate a scenario file
+validate scenario:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [[ ! -f "{{scenario}}" ]]; then
+        echo "Error: scenario file '{{scenario}}' not found"
+        exit 1
+    fi
+    ERRORS=()
+    for field in name region image rpc_url; do
+        val=$(yq -r ".$field // \"\"" "{{scenario}}")
+        if [[ -z "$val" ]]; then
+            ERRORS+=("missing required field: $field")
+        fi
+    done
+    SNAPSHOT_URL=$(yq -r '.snapshot_url // ""' "{{scenario}}")
+    SNAPSHOT_BUCKET=$(yq -r '.snapshot_bucket // ""' "{{scenario}}")
+    if [[ -z "$SNAPSHOT_URL" && -z "$SNAPSHOT_BUCKET" ]]; then
+        ERRORS+=("must set either snapshot_url or snapshot_bucket")
+    fi
+    if [[ -n "$SNAPSHOT_BUCKET" ]]; then
+        for field in snapshot_key snapshot_region; do
+            val=$(yq -r ".$field // \"\"" "{{scenario}}")
+            if [[ -z "$val" ]]; then
+                ERRORS+=("snapshot_bucket requires $field")
+            fi
+        done
+    fi
+    if [[ ${#ERRORS[@]} -gt 0 ]]; then
+        echo "Scenario validation failed:"
+        for err in "${ERRORS[@]}"; do echo "  - $err"; done
+        exit 1
+    fi
+    echo "Scenario '{{scenario}}' is valid."
+
 # Destroy the instance
 down:
-    cd terraform && terraform destroy -auto-approve
+    terraform -chdir=terraform destroy -auto-approve

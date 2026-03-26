@@ -1,4 +1,5 @@
 name: worldchain-sepolia
+region: us-east-1
 image: ghcr.io/worldcoin/world-chain-builder:latest
 snapshot_bucket: world-chain-testnet-snapshots
 snapshot_key: reth_archive.tar.lz4
