@@ -6,79 +6,83 @@ ssh_key := "-i benchmark-key.pem"
 default:
     @just --list
 
-# Initialize Terraform
-init:
-    cd terraform && terraform init -upgrade
-
-# Launch benchmark instance
-up: init
-    cd terraform && terraform apply -auto-approve
-
-# Destroy benchmark instance
-down:
-    cd terraform && terraform destroy -auto-approve
-
-# Stop instance (keeps data)
-stop:
+# Provision instance, deploy scenario config, and launch background setup
+init scenario:
     #!/usr/bin/env bash
     set -euo pipefail
-    cd terraform
-    INSTANCE_ID=$(terraform output -raw instance_id)
-    echo "Stopping instance $INSTANCE_ID..."
-    aws ec2 stop-instances --instance-ids "$INSTANCE_ID"
-    aws ec2 wait instance-stopped --instance-ids "$INSTANCE_ID"
-    echo "Stopped."
 
-# Start instance
-start:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    cd terraform
-    INSTANCE_ID=$(terraform output -raw instance_id)
-    echo "Starting instance $INSTANCE_ID..."
-    aws ec2 start-instances --instance-ids "$INSTANCE_ID"
-    aws ec2 wait instance-running --instance-ids "$INSTANCE_ID"
-    terraform refresh
-    echo "Running at $(terraform output -raw public_ip)"
+    # Validate scenario file exists
+    if [[ ! -f "{{scenario}}" ]]; then
+        echo "Error: scenario file '{{scenario}}' not found"
+        exit 1
+    fi
 
-# Show instance status
+    # Terraform apply
+    echo "==> Provisioning instance..."
+    cd terraform && terraform init -upgrade -input=false > /dev/null
+    terraform apply -auto-approve
+
+    IP=$(terraform output -raw public_ip)
+    SSH="ssh {{ssh_opts}} {{ssh_key}} ubuntu@$IP"
+    SCP="scp {{ssh_opts}} {{ssh_key}}"
+    cd ..
+
+    # Wait for SSH + cloud-init
+    echo "==> Waiting for SSH on $IP..."
+    until $SSH true 2>/dev/null; do sleep 2; done
+    echo "==> Waiting for cloud-init..."
+    $SSH 'cloud-init status --wait' > /dev/null 2>&1
+
+    # Check if setup is already running or complete
+    REMOTE_STATUS=$($SSH 'cat /data/setup/status 2>/dev/null || echo "none"')
+    if [[ "$REMOTE_STATUS" == "ready" ]]; then
+        echo "Setup already completed. Use 'just status' to check or 'just ssh' to connect."
+        exit 0
+    fi
+    if [[ "$REMOTE_STATUS" =~ ^(starting|downloading|verifying|pulling)$ ]]; then
+        echo "Setup already in progress (status: $REMOTE_STATUS). Use 'just status' to monitor."
+        exit 0
+    fi
+
+    # Expand env vars in scenario YAML and deploy files
+    echo "==> Deploying scenario config and scripts..."
+    $SSH 'sudo mkdir -p /data/setup && sudo chown ubuntu:ubuntu /data/setup'
+    envsubst < "{{scenario}}" | $SSH 'cat > /data/setup/scenario.yaml'
+    $SCP scripts/setup.sh scripts/verify-blocks.sh ubuntu@$IP:/data/setup/
+    $SSH 'chmod +x /data/setup/setup.sh /data/setup/verify-blocks.sh'
+
+    # Launch setup as a supervised systemd unit
+    echo "==> Launching background setup..."
+    $SSH 'sudo systemd-run --unit=benchmark-setup --uid=ubuntu --gid=ubuntu \
+        --property=StandardOutput=append:/data/setup/setup.log \
+        --property=StandardError=append:/data/setup/setup.log \
+        /data/setup/setup.sh'
+
+    echo "==> Setup launched. Use 'just status' to monitor progress."
+
+# Show setup status and recent log output
 status:
-    @cd terraform && aws ec2 describe-instance-status --instance-ids $(terraform output -raw instance_id) --query 'InstanceStatuses[0].InstanceState.Name' --output text 2>/dev/null || echo "stopped"
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd terraform
+    IP=$(terraform output -raw public_ip)
+    SSH="ssh {{ssh_opts}} {{ssh_key}} ubuntu@$IP"
+    echo "--- Status ---"
+    $SSH 'cat /data/setup/status 2>/dev/null || echo "no status file"'
+    echo ""
+    echo "--- Last 20 log lines ---"
+    $SSH 'tail -20 /data/setup/setup.log 2>/dev/null || echo "no log file"'
 
-# Wait for instance to be ready
-wait:
+# SSH into the instance
+ssh:
     #!/usr/bin/env bash
     set -euo pipefail
     cd terraform
     IP=$(terraform output -raw public_ip)
     echo "Waiting for SSH on $IP..."
-    until ssh {{ssh_opts}} {{ssh_key}} ubuntu@$IP true 2>/dev/null; do
-        sleep 2
-    done
-    echo "Waiting for cloud-init..."
-    ssh {{ssh_opts}} {{ssh_key}} ubuntu@$IP 'cloud-init status --wait'
-    echo "Ready!"
+    until ssh {{ssh_opts}} {{ssh_key}} ubuntu@$IP true 2>/dev/null; do sleep 2; done
+    ssh {{ssh_opts}} {{ssh_key}} ubuntu@$IP
 
-# SSH into the instance (waits for ready)
-ssh: wait
-    @cd terraform && ssh {{ssh_opts}} {{ssh_key}} ubuntu@$(terraform output -raw public_ip)
-
-# SSH without waiting
-ssh-now:
-    @cd terraform && ssh {{ssh_opts}} {{ssh_key}} ubuntu@$(terraform output -raw public_ip)
-
-# Show instance IP
-ip:
-    @cd terraform && terraform output -raw public_ip
-
-# Tail cloud-init logs on the instance
-logs:
-    @cd terraform && ssh {{ssh_opts}} {{ssh_key}} ubuntu@$(terraform output -raw public_ip) 'tail -f /var/log/cloud-init-output.log'
-
-# Show Terraform outputs
-output:
-    cd terraform && terraform output
-
-# Format Terraform files
-fmt:
-    cd terraform && terraform fmt
+# Destroy the instance
+down:
+    cd terraform && terraform destroy -auto-approve

@@ -1,0 +1,5 @@
+name: reth-mainnet
+image: ghcr.io/worldcoin/world-chain-builder:latest
+snapshot_url: https://snapshots.ethpandaops.io/mainnet/reth/24029720/snapshot.tar.zst
+snapshot_block: 24029720
+rpc_url: https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_KEY}
