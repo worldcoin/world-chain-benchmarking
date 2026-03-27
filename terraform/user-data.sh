@@ -2,7 +2,7 @@
 set -euo pipefail
 
 apt-get update
-apt-get install -y git curl build-essential neovim zstd nvme-cli jq aria2
+apt-get install -y git curl build-essential neovim zstd lz4 nvme-cli jq awscli aria2
 
 # Install just
 curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to /usr/local/bin
@@ -22,20 +22,12 @@ fi
 curl -fsSL https://get.docker.com | sh
 usermod -aG docker ubuntu
 
-# Run remaining setup as ubuntu user
-sudo -u ubuntu bash <<'USERSCRIPT'
-set -euo pipefail
-cd ~
+# Install s5cmd
+curl -sL https://github.com/peak/s5cmd/releases/download/v2.3.0/s5cmd_2.3.0_linux_amd64.tar.gz | tar xz -C /tmp
+mv /tmp/s5cmd /usr/local/bin/
 
-# Install UV
-curl -LsSf https://astral.sh/uv/install.sh | sh
-source "$HOME/.local/bin/env"
-
-# Install Nethermind's benchmark tool
-uv tool install --from git+https://github.com/NethermindEth/execution-payloads-benchmarks expb
-
-# Clone the benchmarking repo
-# git clone https://github.com/worldcoin/world-chain-benchmarking.git
+# Install yq
+curl -sL https://github.com/mikefarah/yq/releases/download/v4.44.1/yq_linux_amd64 -o /usr/local/bin/yq
+chmod +x /usr/local/bin/yq
 
 echo "Ready"
-USERSCRIPT
