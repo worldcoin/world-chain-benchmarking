@@ -2,7 +2,7 @@
 set -euo pipefail
 
 apt-get update
-apt-get install -y git curl build-essential neovim zstd lz4 nvme-cli jq awscli
+apt-get install -y git curl build-essential neovim zstd lz4 nvme-cli jq awscli aria2
 
 # Install just
 curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to /usr/local/bin

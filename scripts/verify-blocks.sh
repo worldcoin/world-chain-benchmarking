@@ -16,11 +16,12 @@ for i in $(seq 0 $((COUNT - 1))); do
         -d "{\"jsonrpc\":\"2.0\",\"method\":\"eth_getBlockByNumber\",\"params\":[\"$BLOCK_HEX\",false],\"id\":1}")
 
     HASH=$(echo "$RESULT" | jq -r '.result.hash // empty')
-    if [[ -z "$HASH" ]]; then
-        echo "FAIL: block $BLOCK_NUM ($BLOCK_HEX) returned no hash"
+    NUMBER=$(echo "$RESULT" | jq -r '.result.number // empty')
+    if [[ -z "$HASH" || -z "$NUMBER" ]]; then
+        echo "FAIL: block $BLOCK_NUM ($BLOCK_HEX) returned no hash or number"
         exit 1
     fi
-    echo "OK: block $BLOCK_NUM hash=$HASH"
+    echo "OK: block $BLOCK_NUM hash=$HASH number=$NUMBER"
 done
 
 echo "All $COUNT blocks verified."

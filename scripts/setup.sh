@@ -28,23 +28,27 @@ write_status "downloading"
 mkdir -p "$SNAPSHOT_DIR"
 
 SNAPSHOT_URL=$(yq -r '.snapshot_url // ""' "$CONFIG")
-SNAPSHOT_BUCKET=$(yq -r '.snapshot_bucket // ""' "$CONFIG")
 
-if [[ -n "$SNAPSHOT_BUCKET" ]]; then
-    # S3 versioned bucket download (World Chain snapshots)
-    SNAPSHOT_KEY=$(yq -r '.snapshot_key' "$CONFIG")
-    SNAPSHOT_REGION=$(yq -r '.snapshot_region' "$CONFIG")
-    VID=$(aws s3api head-object --bucket "$SNAPSHOT_BUCKET" --key "$SNAPSHOT_KEY" \
-        --region "$SNAPSHOT_REGION" --query 'VersionId' --output text)
-    aws s3api get-object --bucket "$SNAPSHOT_BUCKET" --key "$SNAPSHOT_KEY" \
-        --version-id "$VID" --region "$SNAPSHOT_REGION" --no-cli-pager /dev/stdout \
-        | lz4 -d | tar x -C "$SNAPSHOT_DIR"
-elif [[ "$SNAPSHOT_URL" == s3://* ]]; then
-    timeout 7200 s5cmd --no-sign-request cat "$SNAPSHOT_URL" | zstd -d | tar x -C "$SNAPSHOT_DIR"
+# Detect decompression command from URL extension
+decompress_cmd() {
+    case "$1" in
+        *.tar.lz4|*.lz4) echo "lz4 -d" ;;
+        *.tar.zst|*.tar.zstd|*.zst|*.zstd) echo "zstd -d" ;;
+        *) echo "zstd -d" ;;
+    esac
+}
+
+DECOMPRESS=$(decompress_cmd "$SNAPSHOT_URL")
+
+if [[ "$SNAPSHOT_URL" == s3://* ]]; then
+    timeout 7200 s5cmd --no-sign-request cat "$SNAPSHOT_URL" | $DECOMPRESS | tar x -C "$SNAPSHOT_DIR"
 elif [[ "$SNAPSHOT_URL" == https://* ]] || [[ "$SNAPSHOT_URL" == http://* ]]; then
-    curl -fL --speed-limit 1048576 --speed-time 60 "$SNAPSHOT_URL" | zstd -d | tar x -C "$SNAPSHOT_DIR"
+    TMPFILE="$STATUS_DIR/snapshot-download.tmp"
+    aria2c -x 16 -s 16 --file-allocation=none -d "$STATUS_DIR" -o "snapshot-download.tmp" "$SNAPSHOT_URL"
+    $DECOMPRESS "$TMPFILE" | tar x -C "$SNAPSHOT_DIR"
+    rm -f "$TMPFILE"
 else
-    write_status "failed: no snapshot_url or snapshot_bucket specified"
+    write_status "failed: no valid snapshot_url specified"
     exit 1
 fi
 

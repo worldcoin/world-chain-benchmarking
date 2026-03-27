@@ -14,13 +14,18 @@ init scenario:
     # Validate scenario
     just validate "{{scenario}}"
 
-    # Parse region from scenario
+    # Parse region and optional instance_type from scenario
     REGION=$(yq -r '.region' "{{scenario}}")
+    INSTANCE_TYPE=$(yq -r '.instance_type // ""' "{{scenario}}")
 
     # Terraform apply
     echo "==> Provisioning instance in $REGION..."
     terraform -chdir=terraform init -upgrade -input=false > /dev/null
-    terraform -chdir=terraform apply -auto-approve -var "region=$REGION"
+    TF_VARS=(-var "region=$REGION")
+    if [[ -n "$INSTANCE_TYPE" ]]; then
+        TF_VARS+=(-var "instance_type=$INSTANCE_TYPE")
+    fi
+    terraform -chdir=terraform apply -auto-approve "${TF_VARS[@]}"
 
     IP=$(terraform -chdir=terraform output -raw public_ip)
     SSH="ssh {{ssh_opts}} {{ssh_key}} ubuntu@$IP"
@@ -59,14 +64,22 @@ init scenario:
 
     echo "==> Setup launched. Use 'just status' to monitor progress."
 
-# Show setup status and recent log output
+# Show instance state and setup progress
 status:
     #!/usr/bin/env bash
     set -euo pipefail
+    INSTANCE_ID=$(terraform -chdir=terraform output -raw instance_id)
+    STATE=$(aws ec2 describe-instances --instance-ids "$INSTANCE_ID" \
+        --query 'Reservations[0].Instances[0].State.Name' --output text 2>/dev/null || echo "unknown")
+    echo "--- Instance: $STATE ---"
+    if [[ "$STATE" != "running" ]]; then
+        echo "Instance is not running. Cannot check setup status."
+        exit 0
+    fi
     IP=$(terraform -chdir=terraform output -raw public_ip)
     SSH="ssh {{ssh_opts}} {{ssh_key}} ubuntu@$IP"
-    echo "--- Status ---"
-    $SSH 'cat /data/setup/status 2>/dev/null || echo "no status file"'
+    echo "--- Setup Status ---"
+    $SSH 'cat /data/setup/status 2>/dev/null || echo "not started"'
     echo ""
     echo "--- Last 20 log lines ---"
     $SSH 'tail -20 /data/setup/setup.log 2>/dev/null || echo "no log file"'
@@ -96,17 +109,8 @@ validate scenario:
         fi
     done
     SNAPSHOT_URL=$(yq -r '.snapshot_url // ""' "{{scenario}}")
-    SNAPSHOT_BUCKET=$(yq -r '.snapshot_bucket // ""' "{{scenario}}")
-    if [[ -z "$SNAPSHOT_URL" && -z "$SNAPSHOT_BUCKET" ]]; then
-        ERRORS+=("must set either snapshot_url or snapshot_bucket")
-    fi
-    if [[ -n "$SNAPSHOT_BUCKET" ]]; then
-        for field in snapshot_key snapshot_region; do
-            val=$(yq -r ".$field // \"\"" "{{scenario}}")
-            if [[ -z "$val" ]]; then
-                ERRORS+=("snapshot_bucket requires $field")
-            fi
-        done
+    if [[ -z "$SNAPSHOT_URL" ]]; then
+        ERRORS+=("missing required field: snapshot_url")
     fi
     if [[ ${#ERRORS[@]} -gt 0 ]]; then
         echo "Scenario validation failed:"
