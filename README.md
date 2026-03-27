@@ -1,68 +1,30 @@
-# world-chain-benchmarking
+# World Chain Benchmarking
 
-world-chain-benchmarking repository
-=======
-
-# Ethereum Client Benchmarking
-
-Terraform setup for provisioning EC2 instances for Ethereum client benchmarks.
+Provisions EC2 instances for Ethereum client benchmarks. A single `just init` command spins up an instance, downloads a chain snapshot, verifies block availability, and pulls the docker image.
 
 ## Prerequisites
 
 - [Terraform](https://terraform.io) >= 1.0
-- [Just](https://github.com/casey/just) command runner
-- AWS CLI configured with appropriate credentials
-
-## Setup
-
-1. Create your tfvars file:
-
-```bash
-cp terraform/terraform.tfvars.example terraform/terraform.tfvars
-```
-
-2. Edit `terraform/terraform.tfvars`:
-
-```hcl
-region           = "us-east-1"
-instance_type    = "i4i.4xlarge"
-root_volume_size = 500   # GB
-```
-
-3. Customize `terraform/user-data.sh` with your benchmark setup.
+- [Just](https://github.com/casey/just)
+- [yq](https://github.com/mikefarah/yq)
+- AWS credentials configured (`AWS_PROFILE`)
 
 ## Usage
 
-Set your `AWS_PROFILE` env var.
-
 ```bash
-just up      # Launch instance
-just ssh     # SSH into instance
-just logs    # Tail cloud-init logs
-just down    # Destroy instance
+just init scenarios/worldchain-sepolia.yaml   # Provision + setup
+just status                                    # Check setup progress
+just ssh                                       # SSH into instance
+just down                                      # Destroy instance
+just validate scenarios/worldchain-sepolia.yaml # Validate scenario file
 ```
 
-Run `just` to see all available commands.
+## Scenarios
 
-The SSH key pair is auto-generated and saved to `terraform/benchmark-key.pem`.
+Scenario YAML files in `scenarios/` define what to benchmark. See `scenarios/worldchain-sepolia.yaml` for an example.
 
-## Instance Details
-
-- Ubuntu 22.04 LTS
-- gp3 EBS volume with 16,000 IOPS / 1,000 MB/s throughput
-- Ports open: 22 (SSH), 30303 (Ethereum P2P)
+Required fields: `name`, `region`, `image`, `rpc_url`, and either `snapshot_url` or `snapshot_bucket` (with `snapshot_key`, `snapshot_region`).
 
 ## License
 
-Unless otherwise specified, all code in this repository is dual-licensed under
-either:
-
-- MIT License ([LICENSE-MIT](LICENSE-MIT))
-- Apache License, Version 2.0, with LLVM Exceptions
-  ([LICENSE-APACHE](LICENSE-APACHE))
-
-at your option. This means you may select the license you prefer to use.
-
-Any contribution intentionally submitted for inclusion in the work by you, as
-defined in the Apache-2.0 license, shall be dual licensed as above, without any
-additional terms or conditions.
+Dual-licensed under [MIT](LICENSE-MIT) or [Apache 2.0](LICENSE-APACHE) at your option.
