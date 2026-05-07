@@ -11,10 +11,11 @@ Provisions a single EC2 instance with Rust and Docker pre-installed for Ethereum
 ## Usage
 
 ```bash
-just up      # Provision the instance
-just ssh     # SSH into the instance
-just status  # Show instance state and cloud-init status
-just down    # Destroy the instance
+just up                 # Provision the instance
+just snapshot <url>     # Download a chain snapshot (s3:// or https://) to /data/snapshot
+just ssh                # SSH into the instance
+just status             # Show instance state and cloud-init status
+just down               # Destroy the instance
 ```
 
 ## License
