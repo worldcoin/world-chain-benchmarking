@@ -9,6 +9,16 @@ up:
     #!/usr/bin/env bash
     set -euo pipefail
 
+    # Short-circuit if terraform state already has a live instance
+    if INSTANCE_ID=$(terraform -chdir=terraform output -raw instance_id 2>/dev/null) && [[ -n "$INSTANCE_ID" ]]; then
+        STATE=$(aws ec2 describe-instances --instance-ids "$INSTANCE_ID" \
+            --query 'Reservations[0].Instances[0].State.Name' --output text 2>/dev/null || echo "missing")
+        if [[ "$STATE" == "running" || "$STATE" == "pending" ]]; then
+            echo "==> Instance $INSTANCE_ID is already $STATE. Use 'just ssh' to connect or 'just down' to destroy."
+            exit 0
+        fi
+    fi
+
     echo "==> Provisioning instance..."
     terraform -chdir=terraform init -upgrade -input=false > /dev/null
     terraform -chdir=terraform apply -auto-approve
