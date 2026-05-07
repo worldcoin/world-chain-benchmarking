@@ -1,5 +1,3 @@
-set dotenv-load
-
 ssh_opts := "-o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR"
 ssh_key := "-i terraform/benchmark-key.pem"
 
@@ -66,32 +64,6 @@ ssh:
     echo "Waiting for SSH on $IP..."
     until ssh {{ssh_opts}} {{ssh_key}} ubuntu@$IP true 2>/dev/null; do sleep 2; done
     ssh {{ssh_opts}} {{ssh_key}} ubuntu@$IP
-
-# Validate a scenario file
-validate scenario:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    if [[ ! -f "{{scenario}}" ]]; then
-        echo "Error: scenario file '{{scenario}}' not found"
-        exit 1
-    fi
-    ERRORS=()
-    for field in name region image rpc_url; do
-        val=$(yq -r ".$field // \"\"" "{{scenario}}")
-        if [[ -z "$val" ]]; then
-            ERRORS+=("missing required field: $field")
-        fi
-    done
-    SNAPSHOT_URL=$(yq -r '.snapshot_url // ""' "{{scenario}}")
-    if [[ -z "$SNAPSHOT_URL" ]]; then
-        ERRORS+=("missing required field: snapshot_url")
-    fi
-    if [[ ${#ERRORS[@]} -gt 0 ]]; then
-        echo "Scenario validation failed:"
-        for err in "${ERRORS[@]}"; do echo "  - $err"; done
-        exit 1
-    fi
-    echo "Scenario '{{scenario}}' is valid."
 
 # Destroy the instance
 down:
