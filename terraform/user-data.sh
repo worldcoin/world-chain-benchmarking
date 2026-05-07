@@ -30,4 +30,15 @@ mv /tmp/s5cmd /usr/local/bin/
 curl -sL https://github.com/mikefarah/yq/releases/download/v4.44.1/yq_linux_amd64 -o /usr/local/bin/yq
 chmod +x /usr/local/bin/yq
 
+# Install Rust toolchain (system-wide via rustup)
+export RUSTUP_HOME=/usr/local/rustup
+export CARGO_HOME=/usr/local/cargo
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
+    sh -s -- -y --default-toolchain stable --profile default \
+        --component rustfmt --component clippy --no-modify-path
+for bin in rustc cargo rustup rustfmt cargo-fmt cargo-clippy clippy-driver; do
+    ln -sf "$CARGO_HOME/bin/$bin" "/usr/local/bin/$bin"
+done
+chmod -R a+rX "$RUSTUP_HOME" "$CARGO_HOME"
+
 echo "Ready"
