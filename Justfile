@@ -26,6 +26,21 @@ up:
 
     echo "==> Instance ready. Use 'just ssh' to connect."
 
+# Download a chain snapshot to /data/snapshot on the instance
+snapshot url:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    IP=$(terraform -chdir=terraform output -raw public_ip)
+    SSH="ssh {{ssh_opts}} {{ssh_key}} ubuntu@$IP"
+    SCP="scp {{ssh_opts}} {{ssh_key}}"
+
+    echo "==> Deploying download-snapshot.sh to $IP..."
+    $SCP scripts/download-snapshot.sh ubuntu@$IP:/tmp/download-snapshot.sh
+    $SSH 'chmod +x /tmp/download-snapshot.sh'
+
+    echo "==> Downloading snapshot..."
+    $SSH "/tmp/download-snapshot.sh '{{url}}'"
+
 # Show instance state and cloud-init status
 status:
     #!/usr/bin/env bash
