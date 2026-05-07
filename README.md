@@ -10,9 +10,7 @@ Provisions a single EC2 instance with Rust and Docker pre-installed for Ethereum
 
 ### Required AWS permissions
 
-`just up` calls `ec2:RunInstances` directly from your local session. The TFH org-wide `PowerUserAccess` and `BREAKGlassPowerUserAccess` SSO permission sets explicitly **deny** `ec2:RunInstances` (Linear `INFRA-2677`), so an SSO session using either of those will fail at apply time.
-
-Use an SSO profile bound to `AdministratorAccess` on the target account (e.g. `worldcoin-crypto-dev`). Minimum permissions actually needed by `terraform/`: `ec2:RunInstances`, `ec2:Describe*`, `ec2:CreateSecurityGroup` / `AuthorizeSecurityGroup*` / `DeleteSecurityGroup`, `ec2:ImportKeyPair` / `DeleteKeyPair`, `ec2:TerminateInstances`, plus `ec2:CreateTags` and the matching `Delete` actions for teardown.
+`just up` calls `ec2:RunInstances` from your local session, which `PowerUserAccess` denies — use `AdministratorAccess` (or an equivalent role) on the target account.
 
 ## Usage
 
