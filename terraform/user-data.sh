@@ -16,7 +16,7 @@ if [ -n "$NVME_DEVICE" ]; then
 fi
 
 # Install s5cmd (used by download-snapshot.sh for s3:// sources)
-curl -sL https://github.com/peak/s5cmd/releases/download/v2.3.0/s5cmd_2.3.0_linux_amd64.tar.gz | tar xz -C /tmp
+curl -sL https://github.com/peak/s5cmd/releases/download/v2.3.0/s5cmd_2.3.0_Linux-64bit.tar.gz | tar xz -C /tmp
 mv /tmp/s5cmd /usr/local/bin/
 
 # Install Rust toolchain (system-wide via rustup)
